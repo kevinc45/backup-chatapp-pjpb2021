@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { Component } from 'react';
-import {View, Text, TouchableOpacity, FlatList, Image, StatusBar} from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, Image, StatusBar } from 'react-native';
 import firebase from '../Firebase/firebaseConfig'
 import Spinner from 'react-native-loading-spinner-overlay'
-import {launchCamera,launchImageLibrary} from 'react-native-image-picker'
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker'
 import AppHeader from '../Components/AppHeader'
-import {UpdateUserImage} from '../Firebase/Users'
+import { UpdateUserImage } from '../Firebase/Users'
 import ImgToBase64 from 'react-native-image-base64'
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -14,8 +14,9 @@ class Dashboard extends Component {
     state = {
         allUsers: [],
         loader: false,
-        imageUrl:'',
-        loggedInUserName:''
+        imageUrl: '',
+        loggedInUserName: '',
+        myContacts: []
     }
 
     async componentDidMount() {
@@ -31,16 +32,38 @@ class Dashboard extends Component {
                         let lastTime = '';
                         let properDate = '';
                         // let updatecontact = ('users/' + uuid);
-                        datasnapshot.forEach((child) => {
+
+                        datasnapshot.forEach(child => {
                             if (child.val().uuid === uuid) {
-                                // console.log('ff', child.val().image);
-                                this.setState({ loggedInUserName: child.val().name, imageUrl: child.val().image }) 
-                            }
-                        });
-                        const ref = firebase.database().ref('Users').child(uuid).child('contactsuuid');
-                            ref.startAt(0).on("value", function(snapshot){
+                                const myContactUuids = child.val().contactsuuid;
+                                const myContacts = [];
+                                console.log(myContactUuids);
+                                // Get all contacts
+                                firebase.database().ref('users').once('value').then(snapshot => {
+                                    snapshot.forEach(user => {
+                                        if (myContactUuids.includes(user.uuid)) {
+                                            myContacts.push(user);
+                                            
+                                        }
+                                    })
+                                    const inMyContact =  myContactUuids.includes(snapshot.val().uuid);
+                                    console.log(`is ${snapshot.val().name} in my contact? ${inMyContact}`);
+                                });
+                                console.log(`my contacts: ${myContacts}`);
                                 
+                                // console.log('ff', child.val().image);
+                                this.setState({
+                                    loggedInUserName: child.val().name,
+                                    imageUrl: child.val().image,
+                                    myContacts: myContacts
+                                })
+                            }
+                            
                         });
+                        
+                        // ref.startAt(0).on("value", function (snapshot) {
+
+                        // });
                         // var query = firebase.database().ref('users').child(uuid).child('contactsuuid').orderByKey();
                         // query.once("value")
                         //     .then(function(dataSnapshot){
@@ -102,11 +125,12 @@ class Dashboard extends Component {
                     })
                     this.setState({ loader: false })
                 })
-            } catch (error) {
-                alert(error);
-                this.setState({ loader: false })
-            }
+        } catch (error) {
+            alert(error);
+            this.setState({ loader: false })
         }
+    }
+
 
     logOut = async () => {
         await firebase.auth().signOut().then(async () => {
@@ -128,16 +152,16 @@ class Dashboard extends Component {
         let pickerResult = await ImagePicker.launchImageLibraryAsync();
         // let base64 = await ImgToBase64.getBase64String(pickerResult.uri)
         await FileSystem.readAsStringAsync(pickerResult.uri, { encoding: 'base64' })
-        .then(async (base64String) => {
-            this.setState({ loader: true });
-            const uid = await AsyncStorage.getItem('UID');
-            let source = "data:image/jpeg;base64," + base64String;
-            UpdateUserImage(source, uid).
-                then(() => {
-                    this.setState({ imageUrl: response.uri, loader: false });
-                })
-        })
-        .catch(err => this.setState({ loader: false }));
+            .then(async (base64String) => {
+                this.setState({ loader: true });
+                const uid = await AsyncStorage.getItem('UID');
+                let source = "data:image/jpeg;base64," + base64String;
+                UpdateUserImage(source, uid).
+                    then(() => {
+                        this.setState({ imageUrl: response.uri, loader: false });
+                    })
+            })
+            .catch(err => this.setState({ loader: false }));
         // console.log(base64);
         // console.log(base64);
         // launchImageLibrary('photo', (response) => {
@@ -157,7 +181,7 @@ class Dashboard extends Component {
     render() {
         return (
             <View style={{ flex: 1, backgroundColor: '#fff' }}>
-                <StatusBar barStyle='default'/>
+                <StatusBar barStyle='default' />
                 <AppHeader title="Messages" navigation={this.props.navigation} onPress={() => this.logOut()} />
                 <FlatList
                     alwaysBounceVertical={false}
@@ -167,7 +191,7 @@ class Dashboard extends Component {
                     ListHeaderComponent={
                         <View style={{ height: 160, justifyContent: 'center', alignItems: 'center' }}>
                             <TouchableOpacity style={{ height: 90, width: 90, borderRadius: 45 }} onPress={() => { this.openGallery() }}>
-                                <Image source={{ uri: this.state.imageUrl==='' ? 'https://github.com/danilaudza/valorRankImages/blob/main/img/iron/1.png?raw=true' : this.state.imageUrl }} style={{ height: 90, width: 90, borderRadius: 45 }} />
+                                <Image source={{ uri: this.state.imageUrl === '' ? 'https://github.com/danilaudza/valorRankImages/blob/main/img/iron/1.png?raw=true' : this.state.imageUrl }} style={{ height: 90, width: 90, borderRadius: 45 }} />
                             </TouchableOpacity>
                             <Text style={{ color: '#6B48DE', fontSize: 20, marginTop: 10, fontWeight: 'bold' }}>{this.state.loggedInUserName}</Text>
                         </View>
@@ -186,7 +210,7 @@ class Dashboard extends Component {
                                     <Text style={{ color: '#6B48DE', fontSize: 13, fontWeight: '400' }}>{item.lastTime}</Text>
                                 </View>
                             </TouchableOpacity>
-                            <View style={{ borderWidth: 0.5, borderColor: '#ecf0f1', width: '80%', alignSelf: 'flex-end', marginRight: 20}}/>
+                            <View style={{ borderWidth: 0.5, borderColor: '#ecf0f1', width: '80%', alignSelf: 'flex-end', marginRight: 20 }} />
                         </View>
                     )}
                 />
@@ -195,7 +219,8 @@ class Dashboard extends Component {
                 />
             </View>
         )
-    }   
+       
+    }
 }
 
 export default Dashboard;
